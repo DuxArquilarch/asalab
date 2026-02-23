@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 1. BANCO DE DADOS (1-15)
+# 1. BANCO DE DADOS  (1-15)
 AERO_DB = {
     '1': ('NACA 0012', 0.105, 0.0, 1.6, 0.006, 0.00, 0.12, 0.00),
     '2': ('NACA 2412', 0.100, -2.5, 1.4, 0.007, -0.05, 0.12, 0.02),
@@ -50,7 +50,6 @@ def plot_res(r1, r2):
     # Layout: 2 colunas principais (Gráficos vs Dados)
     gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.7])
 
-    # --- LADO ESQUERDO: PERFORMANCE ---
     # CL vs AoA
     ax1 = fig.add_subplot(gs[0, 0])
     ax1.plot(r1['a'], r1['cl'], color=c1, lw=2.5, label=r1['n'])
@@ -122,4 +121,5 @@ if __name__ == "__main__":
         v, c, b, w = map(float, input("Vel(m/s) Corda(m) Env(m) Peso(N): ").split())
         plot_res(calc_aero(ids[0], v, c, b, w), calc_aero(ids[1], v, c, b, w))
     except: print("\n[ERRO] Verifique as entradas.")
+
 
