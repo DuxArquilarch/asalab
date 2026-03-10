@@ -57,7 +57,7 @@ def plot_asa_lab(r1, r2):
         rows=2, cols=3,
         specs=[[{"type": "xy"}, {"type": "xy"}, {"type": "table", "rowspan": 2}],
                [{"type": "xy"}, {"type": "xy"}, None]],
-        subplot_titles=("Sustentação (CL vs Alpha)", "Eficiência (L/D)", "Tabela Técnica de Cálculos", "Polar de Arrasto", "Sensibilidade Reynolds")
+        subplot_titles=("Sustentação (CL vs Alpha)", "Eficiência (L/D)", "Tabela Técnica de Cálculos", "Polar de Arrasto", "Reynolds")
     )
     
     st = [("#040D1A", "solid", "Asa A"), ("#E95A07", "dash", "Asa B")]
@@ -71,13 +71,13 @@ def plot_asa_lab(r1, r2):
     fig.add_trace(go.Table(
         header=dict(values=['<b>PARÂMETRO</b>', '<b>ASA A</b>', '<b>ASA B</b>'], fill_color='#111111', font=dict(color='white')),
         cells=dict(values=[
-            ['Perfil', 'Área Alar (S)', 'Alongamento (AR)', 'Peso (W = m*g)', 'Sust. Requerida (L)', 'Sust. Máxima (Lmax)', 'Arrasto Total (D)', 'CL Requerido', 'Veloc. Stall', 'Reynolds'],
+            ['Perfil', 'Área Alar (S)', 'Alongamento (AR)', 'Peso (W = m*g)', 'CL', 'CL max', 'Arrasto Total (D)', 'CL Req', 'Veloc. Stall', 'Reynolds'],
             [r1['n'], f"{r1['s']:.2f} m²", f"{r1['ar']:.2f}", f"{r1['w']:.1f} N", f"{r1['w']:.1f} N", f"{r1['l_max']:.1f} N", f"{r1['drag']:.2f} N", f"{r1['cl_req']:.3f}", f"{r1['vs']:.2f} m/s", f"{r1['re']:,.0f}"],
             [r2['n'], f"{r2['s']:.2f} m²", f"{r2['ar']:.2f}", f"{r2['w']:.1f} N", f"{r2['w']:.1f} N", f"{r2['l_max']:.1f} N", f"{r2['drag']:.2f} N", f"{r2['cl_req']:.3f}", f"{r2['vs']:.2f} m/s", f"{r2['re']:,.0f}"]
         ], fill_color='#FDFDFD', align='center')
     ), row=1, col=3)
 
-    fig.update_layout(height=800, title_text="✈️ ASA LAB V9.5 - Analise Tecnica")
+    fig.update_layout(height=800, title_text="✈️ ASA LAB V9.5 ")
     fig.show()
 
 if __name__ == "__main__":
@@ -95,5 +95,4 @@ if __name__ == "__main__":
     v1, c1, b1, m1 = get_d("ASA A")
     v2, c2, b2, m2 = get_d("ASA B")
     
-
     plot_asa_lab(engine_aero(ids[0], v1, c1, b1, m1), engine_aero(ids[1], v2, c2, b2, m2))
