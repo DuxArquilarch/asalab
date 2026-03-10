@@ -77,7 +77,7 @@ def plot_asa_lab(r1, r2):
         ], fill_color='#FDFDFD', align='center')
     ), row=1, col=3)
 
-    fig.update_layout(height=800, title_text="✈️ ASA LAB V9.5 - CONSOLIDADO TÉCNICO")
+    fig.update_layout(height=800, title_text="✈️ ASA LAB V9.5 - Analise Tecnica")
     fig.show()
 
 if __name__ == "__main__":
@@ -95,4 +95,5 @@ if __name__ == "__main__":
     v1, c1, b1, m1 = get_d("ASA A")
     v2, c2, b2, m2 = get_d("ASA B")
     
+
     plot_asa_lab(engine_aero(ids[0], v1, c1, b1, m1), engine_aero(ids[1], v2, c2, b2, m2))
