@@ -87,20 +87,11 @@ def ponto_transicao(v, c, rho, mu):
 def calcular_cm_xcp(alphas, cl_asa, cm0_2d, xcp0_2d, AR, e_oswald):
     """
     Coeficiente de Momentum (Cm) e Coeficiente de pressão (XCp) da asa finita.
-
-    Cm_asa ≈ Cm0_2d + dCm/dCL · CL_asa
-      onde dCm/dCL ≈ –0.25 (vórtice distribuído, White §8.4)
-      O Cm0 de perfil é mantido; a contribuição da carga induzida é somada.
-
-    XCp = 0.25 – Cm_asa / CL_asa   (posição em fração da corda)
-      (referência no bordo de ataque, White §8.1)
+    White §8.1, §8.4.
     """
-    # Componente induzida de Cm: sobe com CL² / (π·AR·e)
-    # (arrasto induzido desloca o vetor força)
     cd_ind = (cl_asa**2) / (np.pi * AR * e_oswald)
-    cm_asa = cm0_2d - 0.05 * cl_asa - 0.12 * cd_ind   # aproximação empírica
+    cm_asa = cm0_2d - 0.05 * cl_asa - 0.12 * cd_ind
 
-    # XCp (clipeado entre 0 e 1.5 para evitar divergência em CL≈0)
     with np.errstate(divide="ignore", invalid="ignore"):
         xcp_asa = np.where(
             np.abs(cl_asa) > 0.05,
@@ -117,6 +108,7 @@ def calcular_cm_xcp(alphas, cl_asa, cm0_2d, xcp0_2d, AR, e_oswald):
 def calcular_asa(v, c, b, peso_kg, perfis_sel, asat_sel):
     """
     Ponto de entrada: calcula todos os parâmetros da asa.
+    Aceita 1, 2 ou 3 perfis em perfis_sel.
     Retorna dict pronto para ser consumido pelo módulo de análise/gráficos.
     """
     # ── Constantes físicas (White §1.6, §1.7) ─────────────────────

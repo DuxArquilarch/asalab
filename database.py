@@ -219,9 +219,153 @@ AsaT = {
 }
 
 # ================================================================= #
+# 3 — BANCO DE MATERIAIS RC (Sadraey Cap. 6; White §7.3)             #
+# Unificado a partir de materiais_peso_stall.py                      #
+# ================================================================= #
+MATERIAIS = {
+    # ── MADEIRAS ──────────────────────────────────────────────────
+    "Balsa Leve": {
+        "densidade_kg_m3":  100,
+        "espessura_mm":     3.0,
+        "fator_construcao": 0.30,
+        "cd0_rugosidade":   0.0002,
+        "descricao": "Balsa de baixa densidade (<120 kg/m³). Ideal para asas "
+                     "leves até ~2 kg. Revestimento com Monokote ou fibra 25 g/m².",
+    },
+    "Balsa Média": {
+        "densidade_kg_m3":  160,
+        "espessura_mm":     4.0,
+        "fator_construcao": 0.35,
+        "cd0_rugosidade":   0.0003,
+        "descricao": "Balsa densidade média (120–200 kg/m³). Bom equilíbrio "
+                     "resistência/peso para fuselagens RC.",
+    },
+    "Balsa Densa": {
+        "densidade_kg_m3":  220,
+        "espessura_mm":     5.0,
+        "fator_construcao": 0.40,
+        "cd0_rugosidade":   0.0004,
+        "descricao": "Balsa pesada (>200 kg/m³). Usada em regiões de carga "
+                     "concentrada (engate de trem, raiz da asa).",
+    },
+    "Compensado Bétula 3mm": {
+        "densidade_kg_m3":  650,
+        "espessura_mm":     3.0,
+        "fator_construcao": 0.20,
+        "cd0_rugosidade":   0.0008,
+        "descricao": "Compensado de bétula (birch ply). Alta resistência ao "
+                     "cisalhamento. Usado em nervuras e fundos de fuselagem.",
+    },
+    "Compensado Leve 1.5mm": {
+        "densidade_kg_m3":  500,
+        "espessura_mm":     1.5,
+        "fator_construcao": 0.18,
+        "cd0_rugosidade":   0.0006,
+        "descricao": "Compensado fino para coberturas estruturais leves.",
+    },
+    # ── ESPUMAS ───────────────────────────────────────────────────
+    "Depron 6mm": {
+        "densidade_kg_m3":  33,
+        "espessura_mm":     6.0,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0005,
+        "descricao": "Espuma expandida de poliestireno extrudado. Muito leve, "
+                     "fácil de cortar a laser. Usado em fuselagens e asas de parkflyer.",
+    },
+    "Depron 3mm": {
+        "densidade_kg_m3":  33,
+        "espessura_mm":     3.0,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0005,
+        "descricao": "Depron fino para aeronaves de sala (indoor) e mini-RC.",
+    },
+    "EPP (Polipropileno Expandido)": {
+        "densidade_kg_m3":  25,
+        "espessura_mm":     8.0,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0010,
+        "descricao": "Espuma flexível resistente ao impacto. Ideal para asas de "
+                     "treinador e acrobáticos. Não quebra em colisões.",
+    },
+    "EPS (Isopor estrutural)": {
+        "densidade_kg_m3":  20,
+        "espessura_mm":    10.0,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0015,
+        "descricao": "Poliestireno expandido de alta densidade. Usado em "
+                     "fuselagens moldadas (foam-board style).",
+    },
+    # ── COMPÓSITOS ────────────────────────────────────────────────
+    "Fibra de Vidro 160g/m²": {
+        "densidade_kg_m3":  1800,
+        "espessura_mm":     0.20,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0001,
+        "descricao": "Laminado de fibra de vidro tecido plano 160 g/m². "
+                     "Usado como revestimento sobre núcleo de balsa ou espuma. "
+                     "Aumenta rigidez torsional da asa.",
+    },
+    "Fibra de Carbono 200g/m²": {
+        "densidade_kg_m3":  1600,
+        "espessura_mm":     0.25,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0001,
+        "descricao": "CFRP tecido 3K, 200 g/m². Módulo elástico ~70 GPa. "
+                     "Usado em longarinas, tubos de cauda e nervuras de carga.",
+    },
+    # ── PLÁSTICOS / IMPRESSÃO 3D ──────────────────────────────────
+    "PLA (FDM 20% infill)": {
+        "densidade_kg_m3":  250,
+        "espessura_mm":     2.0,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0012,
+        "descricao": "Impressão 3D FDM em PLA com 20% de preenchimento. "
+                     "Usado em suportes, trens de pouso e empenagem.",
+    },
+    "PETG (FDM 30% infill)": {
+        "densidade_kg_m3":  360,
+        "espessura_mm":     2.5,
+        "fator_construcao": 1.00,
+        "cd0_rugosidade":   0.0010,
+        "descricao": "PETG FDM 30% infill. Mais flexível que PLA, maior "
+                     "resistência ao impacto. Bom para carenagens.",
+    },
+}
+
+# ================================================================= #
+# 4 — CL_MAX E CD0 POR AEROFÓLIO (Abbott & von Doenhoff; Sadraey)   #
+# ================================================================= #
+CL_MAX_2D = {
+    "NACA 4412":             1.65,
+    "SELIG 1223":            2.10,
+    "NACA 6412":             1.70,
+    "CH10_S1210_30":         1.95,
+    "NACA 6909_54.79%_6412": 1.60,
+    "NACA 23012":            1.55,
+    "NACA 23015":            1.50,
+    "NACA 63-215":           1.45,
+    "NACA 65-210":           1.35,
+}
+
+CD0_PERFIL = {
+    "NACA 4412":             0.009,
+    "SELIG 1223":            0.018,
+    "NACA 6412":             0.010,
+    "CH10_S1210_30":         0.015,
+    "NACA 6909_54.79%_6412": 0.009,
+    "NACA 23012":            0.008,
+    "NACA 23015":            0.009,
+    "NACA 63-215":           0.007,
+    "NACA 65-210":           0.006,
+}
+
+# ================================================================= #
 # REFERÊNCIAS                                                        #
 # ─ White, F. M. Fluid Mechanics, 8ª Ed. McGraw-Hill, 2016.         #
+#   §7.3   Rugosidade superficial — CD0                             #
 #   §8.1   Geometria NACA 4, 5 e 6 dígitos                          #
+#   §8.3   Polar parabólica, e_Oswald                               #
 # ─ Abbott, I.H.; von Doenhoff, A.E. Theory of Wing Sections, 1959. #
+# ─ Sadraey, M. Aircraft Design. Wiley, 2013. Cap. 6 (materiais)   #
 # ─ XFLR5 v6 — Analysis Tool for Airfoils, Wings and Planes         #
 # ================================================================= #
