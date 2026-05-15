@@ -229,20 +229,57 @@ def launch_asalab_gui():
 
     # Variáveis de voo
     v_var    = tk.DoubleVar(value=15.0)
-    c_var    = tk.DoubleVar(value=0.60)
-    b_var    = tk.DoubleVar(value=3.0)
+    c_var    = tk.StringVar(value="0.60")   # Entry de texto livre
+    b_var    = tk.StringVar(value="3.0")    # Entry de texto livre
     peso_var = tk.DoubleVar(value=5.0)
 
     s_voo = _section(inner1, "PARÂMETROS DE VOO")
     _scale(s_voo, v_var,    from_=3,   to=80,  label="Velocidade (m/s)",  resolution=0.5)
-    _scale(s_voo, c_var,    from_=0.1, to=2.0, label="Corda c (m)",       resolution=0.05)
-    _scale(s_voo, b_var,    from_=0.3, to=12,  label="Envergadura b (m)", resolution=0.1)
+
+    # ── Corda e Envergadura: entrada de texto livre ─────────────
+    def _entry_row(parent, label_txt, var, unit="m", min_val=0.01, max_val=99.0):
+        """Cria uma linha label + Entry + unidade com validação on-focus-out."""
+        f = tk.Frame(parent, bg=PANEL)
+        f.pack(fill="x", pady=3)
+        tk.Label(f, text=label_txt, bg=PANEL, fg=MUTED,
+                 font=("Courier", 8), width=26, anchor="w").pack(side="left")
+        ent = _entry(f, var, width=12)
+        ent.pack(side="left", padx=4)
+        tk.Label(f, text=unit, bg=PANEL, fg=MUTED,
+                 font=("Courier", 8)).pack(side="left")
+
+        # Feedback visual de erro
+        err_lbl = tk.Label(f, text="", bg=PANEL, fg=RED,
+                           font=("Courier", 8))
+        err_lbl.pack(side="left", padx=6)
+
+        def _validate(*_):
+            try:
+                val = float(var.get())
+                if val < min_val or val > max_val:
+                    raise ValueError
+                err_lbl.config(text="")
+                ent.config(bg="#21262d")
+            except (ValueError, tk.TclError):
+                err_lbl.config(text=f"✗  [{min_val}–{max_val}]")
+                ent.config(bg="#3d1a1a")
+
+        ent.bind("<FocusOut>", _validate)
+        ent.bind("<Return>",   _validate)
+        return ent
+
+    _entry_row(s_voo, "Corda c (m)",       c_var,    unit="m", min_val=0.01, max_val=20.0)
+    _entry_row(s_voo, "Envergadura b (m)", b_var,    unit="m", min_val=0.01, max_val=60.0)
     _scale(s_voo, peso_var, from_=0.1, to=50,  label="Peso total (kg)",   resolution=0.1)
 
     ar_lbl_var = tk.StringVar()
+    def _safe(var, fallback=0.0):
+        try:    return float(var.get())
+        except: return fallback
+
     def _upd_ar(*_):
-        b = b_var.get(); c = c_var.get()
-        ar = b**2 / (b * c) if c > 0 else 0
+        b = _safe(b_var); c = _safe(c_var)
+        ar = b**2 / (b * c) if c > 0 and b > 0 else 0
         s  = b * c
         ar_lbl_var.set(f"AR = {ar:.2f}   |   S = {s:.3f} m²")
     for var in (b_var, c_var):
@@ -379,7 +416,7 @@ def launch_asalab_gui():
     s_resumo = _section(inner3, "RESUMO DOS PARÂMETROS ATUAIS")
     resumo_var = tk.StringVar()
     def _upd_resumo(*_):
-        v = v_var.get(); c = c_var.get(); b = b_var.get(); pe = peso_var.get()
+        v = v_var.get(); c = _safe(c_var); b = _safe(b_var); pe = peso_var.get()
         s = b * c; ar = b**2 / s if s > 0 else 0
         rho = 1.225; mu = 1.849e-5
         re = rho * v * c / mu
@@ -459,6 +496,16 @@ def launch_asalab_gui():
             messagebox.showerror("AsaLab", "Selecione no máximo 3 aerofólios.")
             return
 
+        # Validar corda e envergadura
+        try:
+            c_val = float(c_var.get())
+            b_val = float(b_var.get())
+            if c_val <= 0 or b_val <= 0:
+                raise ValueError
+        except (ValueError, tk.TclError):
+            messagebox.showerror("AsaLab", "Corda e Envergadura devem ser números positivos.")
+            return
+
         lista_atual = perfis_lista_ref[0]
         perfis_sel  = [lista_atual[i] for i in sel_perf_idx]
 
@@ -475,8 +522,8 @@ def launch_asalab_gui():
         result.update({
             "cancelled":      False,
             "v":              v_var.get(),
-            "c":              c_var.get(),
-            "b":              b_var.get(),
+            "c":              c_val,
+            "b":              b_val,
             "peso_kg":        peso_var.get(),
             "perfis_sel":     perfis_sel,
             "asat_sel":       asat_var.get(),
