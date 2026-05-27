@@ -1,13 +1,20 @@
-1-NumPy	Cálculos matemáticos e matrizes.
-2-Plotly	Geração dos gráficos interativos.
-3-Tkinter	Interface gráfica
-  
- Windows: pip install numpy plotly
-   
-   Linux: 
+1-NumPy     Cálculos matemáticos e matrizes.
+2-Plotly    Geração dos gráficos interativos.
+3-Tkinter   Interface gráfica.
+4-matplotlib interface de salvar arquivos e geometria 
+
+dependencias windows:
+
+Windows: pip install numpy plotly matplotlib
+
+criação de venv
+
+Linux: 
 sudo apt update && sudo apt install python3-tk python3-venv -y
-  
+
 python3 -m venv venv
 source venv/bin/activate
 
-pip install numpy plotly
+dependencias linux:
+
+pip install numpy plotly matplotlib
