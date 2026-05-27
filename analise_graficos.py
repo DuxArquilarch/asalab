@@ -1,78 +1,43 @@
 # ================================================================= #
-# AsalabXYZ — MÓDULO 3: ANÁLISE E GRÁFICOS AERODINÂMICOS            #
+# Dark Wing Project — MÓDULO 3: ANÁLISE E GRÁFICOS AERODINÂMICOS            #
 #                                                                    #
 # Figura 1 (sempre): layout 2×3 aerodinâmico — CL, CD, L/D, Cm,    #
 # XCp e silhueta da asa.                                             #
 #                                                                    #
+# Geometria de perfis/asa → analise_ra_calc.py                      #
 # White, F.M. Fluid Mechanics, 8ª Ed., 2016                         #
 # ================================================================= #
 
+import os
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from calculos import calcular_asa
+from analise_ra_calc import gerar_coord_naca, gerar_silhueta_asat  # noqa: F401
+
+# Diretório de saída (mesmo local do código)
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _save_path(filename):
+    """Retorna caminho completo no diretório do script."""
+    return os.path.join(OUTPUT_DIR, filename)
 
 
 # ================================================================= #
-# GEOMETRIA DO PERFIL (White §8.1)                                   #
+# PALETA — AEROFOLIOS                                                #
 # ================================================================= #
-
-def gerar_coord_naca(nome):
-    x = np.linspace(0, 1, 101)
-    def thickness(t):
-        return 5*t*(0.2969*np.sqrt(x)-0.1260*x-0.3516*x**2+0.2843*x**3-0.1015*x**4)
-    u = nome.upper()
-    if "23012" in u:
-        r,k1=0.2025,15.957
-        yc=np.where(x<r,k1/6*(x**3-3*r*x**2+r**2*(3-r)*x),k1*r**3/6*(1-x)); yt=thickness(0.12)
-    elif "23015" in u:
-        r,k1=0.2025,15.957
-        yc=np.where(x<r,k1/6*(x**3-3*r*x**2+r**2*(3-r)*x),k1*r**3/6*(1-x)); yt=thickness(0.15)
-    elif "63-2" in u or "632" in u:
-        m,p=0.02,0.35
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.15)
-    elif "65-2" in u or "652" in u:
-        m,p=0.015,0.40
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.10)
-    elif "4412" in u:
-        m,p=0.04,0.4
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.12)
-    elif "6412" in u:
-        m,p=0.06,0.4
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.12)
-    elif "1223" in u:
-        m,p=0.11,0.2
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.23)
-    else:
-        m,p=0.05,0.5
-        yc=np.where(x<p,m/p**2*(2*p*x-x**2),m/(1-p)**2*((1-2*p)+2*p*x-x**2)); yt=thickness(0.15)
-    return x, yc+yt, yc-yt
-
-def gerar_silhueta_asat(forma, b, c):
-    if forma=="Retangular":
-        return [0,b/2,b/2,0,0],[0,0,c,c,0]
-    elif forma=="Elíptica":
-        th=np.linspace(0,np.pi,120)
-        return list((b/2)*np.sin(th))+[0], list(c*np.cos(th)/2+c/2)+[c/2]
-    else:
-        return [0,b/2,0,0],[0,c/2,c,0]
+CORES  = ["#1f77b4", "#d62728", "#2ca02c"]
+DASHES = ["solid", "solid", "solid"]
 
 
 # ================================================================= #
-# PALETA                                                             #
-# ================================================================= #
-CORES  = ["#01021A","#EF553B","#00CC96"]
-DASHES = ["solid","dot","dash"]
-
-
-# ================================================================= #
-# FIGURA 1 — GRÁFICOS AERODINÂMICOS                                  #
+# FIGURA 1 — GRÁFICOS AERODINÂMICOS (salvos como imagem PNG)         #
 # ================================================================= #
 def plotar_resultados(dados, cfg_mat=None):
     """
     Gera a Figura 1 (layout 2×3) com CL, CD, L/D, Cm, XCp e silhueta.
-    O argumento cfg_mat é mantido apenas para retrocompatibilidade
-    (não produz mais tabelas de materiais/peso/stall).
+    Salva como imagem PNG no diretório local em vez de abrir navegador.
     """
     v=dados["v"]; c=dados["c"]; b=dados["b"]; peso_kg=dados["peso_kg"]
     S=dados["S"]; AR=dados["AR"]; re_real=dados["re_real"]; cl_req=dados["cl_req"]
@@ -132,7 +97,7 @@ def plotar_resultados(dados, cfg_mat=None):
         line=dict(color="black",dash="dash",width=1.5)),row=1,col=1)
     xs_pf,ys_pf=gerar_silhueta_asat(asat_sel,b,c)
     fig.add_trace(go.Scatter(x=xs_pf,y=ys_pf,fill="toself",
-        fillcolor="rgba(30,80,180,0.25)",line=dict(color="navy",width=2),
+        fillcolor="rgba(100,100,100,0.15)",line=dict(color="black",width=2),
         showlegend=False),row=2,col=3)
     fig.add_annotation(x=b/4,y=c*1.08,text=f"b={b:.2f} m | c={c:.2f} m | AR={AR:.2f}",
         showarrow=False,font=dict(size=10),row=2,col=3)
@@ -149,7 +114,7 @@ def plotar_resultados(dados, cfg_mat=None):
 
     fig.update_layout(height=1100,width=1400,template="plotly_white",
         margin=dict(t=100,b=360,l=80,r=80),
-        title=dict(text=(f"AsalabXYZ | AsaT: <b>{asat_sel}</b> | "
+        title=dict(text=(f"Dark Wing Project | AsaT: <b>{asat_sel}</b> | "
                          f"{n_perfis} perfil{'is' if n_perfis>1 else ''} | "
                          "<i>Fluid Mechanics — White 8ª Ed.</i>"),
                    x=0.5,font=dict(size=16)),
@@ -166,7 +131,12 @@ def plotar_resultados(dados, cfg_mat=None):
     fig.update_yaxes(title_text="XCp (x/c)",row=2,col=2,autorange="reversed")
     fig.update_xaxes(title_text="y — semi-envergadura [m]",row=2,col=3)
     fig.update_yaxes(title_text="x — corda [m]",row=2,col=3)
-    fig.show()
+
+    # SAVE AS IMAGE INSTEAD OF SHOWING IN BROWSER
+    safe_name = "_".join(perfis_sel).replace(" ", "_")
+    output_path = _save_path(f"fig1_aerodinamica_{safe_name}.png")
+    fig.write_image(output_path, scale=2)
+    print(f"  [Gráficos] Figura 1 salva em: {output_path}")
 
 
 # ================================================================= #
