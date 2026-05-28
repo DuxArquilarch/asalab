@@ -1,20 +1,37 @@
 # ================================================================= #
-# Dark Wing Project — MÓDULO: CÁLCULOS GEOMÉTRICOS / RA                    #
-#                                                                    #
-# Separado de analise_graficos.py.                                  #
-# Contém: geometria de perfis NACA, silhueta da asa,               #
-#         e derivação de c/b a partir de RA e S.                    #
+# Dark Wing Project — MÓDULO: CÁLCULOS GEOMÉTRICOS / RA             #
 # ================================================================= #
 
 import numpy as np
 
+# ----------------------------------------------------------------- #
+# AIRFOIL LIST — kept in sync with database.DATABASE                 #
+# Updated at runtime by cli.py / gui.py after any DB change.        #
+# ----------------------------------------------------------------- #
+AIRFOILS_AVAILABLE = []   # populated by _refresh_airfoils()
+
+def _refresh_airfoils():
+    """Re-read DATABASE keys and update AIRFOILS_AVAILABLE in place."""
+    global AIRFOILS_AVAILABLE
+    try:
+        import importlib, sys
+        mod = sys.modules.get("database") or importlib.import_module("database")
+        AIRFOILS_AVAILABLE[:] = list(mod.DATABASE.keys())
+    except Exception:
+        pass
+
+_refresh_airfoils()
+
 
 # ----------------------------------------------------------------- #
-# GEOMETRIA DO PERFIL (White §8.1)                                  #
+# GEOMETRY (White §8.1)                                              #
 # ----------------------------------------------------------------- #
 
+#Tab visualizer
 def gerar_coord_naca(nome):
-    """Retorna (x, y_upper, y_lower) para o perfil NACA dado."""
+    """Returns (x, y_upper, y_lower) for the given airfoil name.
+    Handles standard NACA 4-digit strings and sets dynamic defaults for custom curves.
+    """
     x = np.linspace(0, 1, 101)
 
     def thickness(t):
@@ -26,65 +43,49 @@ def gerar_coord_naca(nome):
             - 0.1015 * x ** 4
         )
 
-    u = nome.upper()
-    if "23012" in u:
-        r, k1 = 0.2025, 15.957
-        yc = np.where(x < r,
-                      k1 / 6 * (x ** 3 - 3 * r * x ** 2 + r ** 2 * (3 - r) * x),
-                      k1 * r ** 3 / 6 * (1 - x))
-        yt = thickness(0.12)
-    elif "23015" in u:
-        r, k1 = 0.2025, 15.957
-        yc = np.where(x < r,
-                      k1 / 6 * (x ** 3 - 3 * r * x ** 2 + r ** 2 * (3 - r) * x),
-                      k1 * r ** 3 / 6 * (1 - x))
-        yt = thickness(0.15)
-    elif "63-2" in u or "632" in u:
-        m, p = 0.02, 0.35
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.15)
-    elif "65-2" in u or "652" in u:
-        m, p = 0.015, 0.40
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.10)
-    elif "4412" in u:
-        m, p = 0.04, 0.4
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.12)
-    elif "6412" in u:
-        m, p = 0.06, 0.4
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.12)
-    elif "1223" in u:
-        m, p = 0.11, 0.2
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.23)
+    def camber_4digit(m, p):
+        yc = np.zeros_like(x)
+        if p == 0:
+            return yc
+        idx = x <= p
+        yc[idx] = (m / p**2) * (2 * p * x[idx] - x[idx]**2)
+        yc[~idx] = (m / (1 - p)**2) * ((1 - 2 * p) + 2 * p * x[~idx] - x[~idx]**2)
+        return yc
+
+    # --- Airfoil Geometry Extraction Logic ---
+    nome_upper = nome.upper()
+    digits = "".join(filter(str.isdigit, nome_upper))
+    
+    if "NACA" in nome_upper and len(digits) >= 4:
+        # Standard NACA 4-Digit Parser
+        m = int(digits[0]) / 100.0
+        p = int(digits[1]) / 10.0 if int(digits[1]) > 0 else 0.5
+        t = int(digits[2:4]) / 100.0
+    elif "SELIG" in nome_upper or "S1223" in nome_upper:
+        # Parameters closely matching the ultra-high camber Selig 1223
+        m, p, t = 0.081, 0.35, 0.121
+    elif "MH" in nome_upper:
+        # Parameters representing thin, low-camber speed profiles (e.g., MH 32)
+        m, p, t = 0.024, 0.41, 0.087
+    elif "CH10" in nome_upper:
+        # High lift heavy cargo profile adaptation
+        m, p, t = 0.075, 0.30, 0.120
     else:
-        m, p = 0.05, 0.5
-        yc = np.where(x < p,
-                      m / p ** 2 * (2 * p * x - x ** 2),
-                      m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x ** 2))
-        yt = thickness(0.15)
+        # General safe fallback for other custom profiles in your database
+        m, p, t = 0.04, 0.4, 0.12
+
+    yc = camber_4digit(m, p)
+    yt = thickness(t)
 
     return x, yc + yt, yc - yt
 
 
 # ----------------------------------------------------------------- #
-# SILHUETA DA ASA                                                    #
+# WING PLANFORM                                                      #
 # ----------------------------------------------------------------- #
 
 def gerar_silhueta_asat(forma, b, c):
-    """Retorna (xs, ys) para plotar silhueta da asa (semi-envergadura)."""
+    """Returns (xs, ys) for wing planform (semi-span)."""
     if forma == "Retangular":
         return [0, b / 2, b / 2, 0, 0], [0, 0, c, c, 0]
     elif forma == "Elíptica":
@@ -96,19 +97,26 @@ def gerar_silhueta_asat(forma, b, c):
 
 
 # ----------------------------------------------------------------- #
-# DERIVAÇÃO GEOMÉTRICA A PARTIR DE RA + S (usado pela aba GEO)      #
+# COMPATIBILIDADE RETROATIVA: RA e S                                #
 # ----------------------------------------------------------------- #
 
-def geometria_de_ra_e_s(ra: float, s: float):
+def geometria_de_ra_e_s(perfil_nome, forma, b, c):
     """
-    Dado RA = b²/S e área S, devolve corda c e envergadura b.
+    Retorna métricas da asa calculadas geometricamente (White Cap 8).
+    Utilizado como verificação cruzada com os métodos estatísticos.
+    """
+    # Área da semi-asa via trapézio composto da planta baixa
+    xs, ys = gerar_silhueta_asat(forma, b, c)
+    S_semi = float(np.trapz(ys[:len(ys)//2], xs[:len(xs)//2]))
+    S = S_semi * 2.0
+    AR = (b ** 2) / S if S > 0 else 0.0
 
-    Returns
-    -------
-    dict com 'b', 'c', 'AR', 'S'
-    """
-    if ra <= 0 or s <= 0:
-        raise ValueError("RA e S devem ser positivos.")
-    b = float(np.sqrt(ra * s))
-    c = float(s / b)
-    return {"b": b, "c": c, "AR": ra, "S": s}
+    # Volume do aerofólio adimensionalizado
+    x, yu, yl = gerar_coord_naca(perfil_nome)
+    vol_perfil_adim = float(np.trapz(yu - yl, x))
+
+    return {
+        "S_geometrico": S,
+        "AR_geometrico": AR,
+        "vol_adim_perfil": vol_perfil_adim
+    }
