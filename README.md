@@ -15,8 +15,8 @@
 6. [GUI Tabs](#gui-tabs)
 7. [CLI Usage](#cli-usage)
 8. [Output Files](#output-files)
-9. [Dependencies](#dependencies)
-10. [Installation](#installation)
+9. [Dependências](#dependencies)
+10. [Instalação](#instalação)
 11. [Quick Start](#quick-start)
 12. [Adding Airfoils](#adding-airfoils)
 13. [References](#references)
@@ -328,41 +328,48 @@ All files are written to `Reports/` (created automatically if missing or deleted
 
 ## Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `numpy` | ≥ 1.24 | All numerical computation |
-| `plotly` | ≥ 5.0 | Interactive charts, PNG export |
-| `kaleido` | ≥ 0.2 | Plotly static image export (`write_image`) |
-| `matplotlib` | ≥ 3.7 | Geometry viewer (geo_visualizer) |
-| `tkinter` | stdlib | GUI — included with Python on all platforms |
-| `numba` | ≥ 0.57 | JIT compilation for CFD solver |
-| `opencv-python` | ≥ 4.8 | CFD display window (`cv2`) |
-| `imageio` | ≥ 2.28 | GIF export from AeroSim |
+| Pacote | Uso |
+|--------|-----|
+| `numpy` | Cálculos matemáticos e matrizes |
+| `plotly` | Geração dos gráficos interativos |
+| `tkinter` | Interface gráfica (stdlib — incluso no Python) |
+| `matplotlib` | Interface de salvar arquivos e visualizador de geometria |
 
-> `tkinter` is bundled with CPython on Windows and macOS. On Linux: `sudo apt install python3-tk`
+> **Nota:** `tkinter` já vem com o Python no Windows e macOS. No Linux é necessário instalá-lo separadamente (veja abaixo).
 
 ---
 
-## Installation
+## Instalação
+
+### Windows
 
 ```bash
-# 1. Clone or copy the project folder
-git clone <repo-url>
-cd dark-wing
+# 1. Crie e ative o ambiente virtual
+python -m venv venv
+venv\Scripts\activate
 
-# 2. Create a virtual environment (recommended)
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-.venv\Scripts\activate           # Windows
+# 2. Instale as dependências
+pip install numpy plotly matplotlib
 
-# 3. Install dependencies
-pip install numpy plotly kaleido matplotlib numba opencv-python imageio
-
-# 4. Linux only — Tkinter
-sudo apt install python3-tk
-
-# 5. Run
+# 3. Execute
 python asalab_Main.py
+```
+
+### Linux
+
+```bash
+# 1. Instale tkinter e venv (caso ainda não tenha)
+sudo apt update && sudo apt install python3-tk python3-venv -y
+
+# 2. Crie e ative o ambiente virtual
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Instale as dependências
+pip install numpy plotly matplotlib
+
+# 4. Execute
+python3 asalab_Main.py
 ```
 
 ---
