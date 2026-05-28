@@ -19,6 +19,7 @@ def main():
 
         print("\n" + "═" * 65)
         print("  DARK WING PROJECT V2")
+        print("  Tabs: ✈ VOO | 📐 SADRAEY | 📐 GEO(RA) | 📊 GRÁFICOS | 🌀 AEROSIM | 🔷 GEO VIZ")
         print("═" * 65)
         print(f"  V={cfg['v']} m/s | c={cfg['c']} m | b={cfg['b']} m | W={cfg['peso_kg']} kg")
         print(f"  Altitude: {cfg.get('altitude_m', 0):.0f} m | Temp: {cfg.get('temp_C', 15):.1f} °C")

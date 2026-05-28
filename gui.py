@@ -586,6 +586,286 @@ def launch_darkwing_gui():
              justify="left").pack(fill="x", pady=4)
 
     # ════════════════════════════════════════════════════════════
+    # ABA 4 — AEROSIM (Dark_Wing CFD)
+    # ════════════════════════════════════════════════════════════
+    tab4 = tk.Frame(nb, bg=BG)
+    nb.add(tab4, text="  🌀 AEROSIM  ")
+
+    inner4 = tk.Frame(tab4, bg=BG, padx=14)
+    inner4.pack(fill="both", expand=True, pady=6)
+
+    s_aerosim_info = _section(inner4, "AEROSIM v4.1 — Simulação CFD 2D (Dark_Wing)")
+    tk.Label(s_aerosim_info,
+             text="  Simulação de escoamento incompressível 2D em tempo real.\n"
+                  "  Entrada: arquivo .DAT (Selig/Lednicer) ou .STL (CAD/Inventor).\n"
+                  "  Solver: Navier-Stokes simplificado (Numba JIT) — visualização OpenCV.",
+             bg=PANEL, fg=MUTED, font=("Courier", 9), justify="left").pack(anchor="w", pady=4)
+
+    s_aerosim_cfg = _section(inner4, "PARÂMETROS RÁPIDOS")
+
+    aerosim_aoa_var  = tk.DoubleVar(value=5.0)
+    aerosim_vel_var  = tk.DoubleVar(value=30.0)
+    aerosim_alt_var  = tk.DoubleVar(value=0.0)
+    aerosim_gif_var  = tk.BooleanVar(value=False)
+    aerosim_path_var = tk.StringVar(value="(nenhum arquivo — usa NACA 2412)")
+
+    def _browse_aerosim():
+        from tkinter import filedialog
+        p = filedialog.askopenfilename(
+            title="Selecione perfil .DAT ou .STL",
+            filetypes=[("Perfil aerodinâmico", "*.dat *.DAT *.stl *.STL *.txt")])
+        if p:
+            aerosim_path_var.set(p)
+
+    path_row = tk.Frame(s_aerosim_cfg, bg=PANEL); path_row.pack(fill="x", pady=3)
+    tk.Label(path_row, text="Arquivo perfil:", bg=PANEL, fg=MUTED,
+             font=("Courier", 8), width=16, anchor="w").pack(side="left")
+    tk.Entry(path_row, textvariable=aerosim_path_var, bg="#21262d", fg=TEXT,
+             insertbackground=TEXT, relief="flat", font=("Courier", 8),
+             width=36).pack(side="left", padx=4)
+    tk.Button(path_row, text="ARQUIVO", command=_browse_aerosim,
+              bg="#30363d", fg=TEXT, font=("Courier", 8, "bold"),
+              relief="flat", padx=6, cursor="hand2").pack(side="left")
+
+    _scale(s_aerosim_cfg, aerosim_aoa_var, from_=-20, to=20,
+           label="AoA [°]", resolution=0.5)
+    _scale(s_aerosim_cfg, aerosim_vel_var, from_=5, to=60,
+           label="Velocidade [m/s]", resolution=1.0)
+    _scale(s_aerosim_cfg, aerosim_alt_var, from_=0, to=5000,
+           label="Altitude [m]", resolution=100.0)
+    _checkbtn(s_aerosim_cfg, "Salvar GIF da simulação", aerosim_gif_var).pack(anchor="w", pady=2)
+
+    aerosim_status_var = tk.StringVar(value="Aguardando.")
+    tk.Label(s_aerosim_cfg, textvariable=aerosim_status_var,
+             bg=PANEL, fg=GREEN, font=("Courier", 8)).pack(anchor="w", pady=4)
+
+    s_aerosim_act = _section(inner4, "EXECUTAR")
+    tk.Label(s_aerosim_act,
+             text="  Abre janela OpenCV separada. Pressione 'q' para encerrar.\n"
+                  "  Não bloqueia a GUI principal.",
+             bg=PANEL, fg=MUTED, font=("Courier", 8), justify="left").pack(anchor="w")
+
+    def _launch_aerosim():
+        import threading, os
+        try:
+            from Dark_Wing import load_airfoil_robust, air_properties, solve_step
+            import cv2, math, numpy as _np
+        except ImportError as e:
+            messagebox.showerror("AeroSim", f"Dependência ausente:\n{e}\n\nVerifique: numba, cv2 (opencv-python)")
+            return
+
+        filepath = aerosim_path_var.get()
+        if not os.path.isfile(filepath):
+            filepath = None
+
+        cfg_sim = {
+            "filepath":  filepath,
+            "aoa":       aerosim_aoa_var.get(),
+            "velocity":  aerosim_vel_var.get(),
+            "altitude":  aerosim_alt_var.get(),
+            "save_gif":  aerosim_gif_var.get(),
+            "cancelled": False,
+        }
+
+        def _run_sim():
+            aerosim_status_var.set("Simulando…")
+            try:
+                Ny, Nx = 360, 640
+                v_target = cfg_sim["velocity"]
+                rho, mu  = air_properties(cfg_sim["altitude"])
+                dl = 1.0 / Nx
+                dt = 0.10 / (v_target + 1e-6)
+                aoa_deg  = abs(cfg_sim["aoa"])
+                is_stl   = str(cfg_sim["filepath"]).lower().endswith(".stl") if cfg_sim["filepath"] else False
+                nu_extra = max(0.0, (aoa_deg - 6.0) * 0.005)
+                if is_stl:
+                    nu_extra += 0.008
+
+                pts_raw = load_airfoil_robust(cfg_sim["filepath"])
+                label   = (os.path.splitext(os.path.basename(cfg_sim["filepath"]))[0]
+                           if cfg_sim["filepath"] else "NACA2412")
+
+                aoa_r = _np.radians(cfg_sim["aoa"])
+                c, s  = math.cos(aoa_r), math.sin(aoa_r)
+                rot   = _np.array([[c, -s], [s, c]])
+
+                pts_n = pts_raw.copy()
+                pts_n[:, 0] -= 0.5
+                pts_rot = (rot @ pts_n.T).T
+                scale   = Nx * 0.35
+                bx_min, bx_max = pts_rot[:, 0].min(), pts_rot[:, 0].max()
+                by_min, by_max = pts_rot[:, 1].min(), pts_rot[:, 1].max()
+                bx_c = (bx_min + bx_max) / 2.0
+                by_c = (by_min + by_max) / 2.0
+                pts_f = _np.zeros_like(pts_rot)
+                pts_f[:, 0] = (pts_rot[:, 0] - bx_c) * scale + Nx * 0.42
+                pts_f[:, 1] = Ny / 2.0 - (pts_rot[:, 1] - by_c) * scale
+                margin = 15
+                x_out = max(0, -pts_f[:, 0].min()+margin, pts_f[:, 0].max()-(Nx-margin))
+                y_out = max(0, -pts_f[:, 1].min()+margin, pts_f[:, 1].max()-(Ny-margin))
+                if x_out > 0 or y_out > 0:
+                    shrink = min((Nx-2*margin)/((bx_max-bx_min)*scale+1e-6),
+                                 (Ny-2*margin)/((by_max-by_min)*scale+1e-6))
+                    scale *= shrink
+                    pts_f[:, 0] = (pts_rot[:, 0] - bx_c) * scale + Nx * 0.42
+                    pts_f[:, 1] = Ny/2.0 - (rot @ pts_n.T).T[:, 1] * scale
+
+                import cv2 as _cv2
+                mask = _np.zeros((Ny, Nx), dtype=_np.uint8)
+                _cv2.fillPoly(mask, [pts_f.astype(_np.int32)], 255)
+                objet = (mask.T > 127).astype(_np.uint8)
+
+                vx = _np.full((Nx, Ny), v_target, dtype=_np.float64)
+                vy = _np.zeros((Nx, Ny))
+                p  = _np.zeros((Nx, Ny))
+                gif_frames = []
+
+                for it in range(2500):
+                    vx, vy, p, v_max = solve_step(vx, vy, p, rho, mu, dl, dt, nu_extra)
+                    vx[1:-1, 1:-1] -= (dt/rho)*(p[2:, 1:-1]-p[:-2, 1:-1])/(2*dl)
+                    vy[1:-1, 1:-1] -= (dt/rho)*(p[1:-1, 2:]-p[1:-1, :-2])/(2*dl)
+                    v_lim = v_target * 3.5
+                    _np.clip(vx, -v_lim, v_lim, out=vx)
+                    _np.clip(vy, -v_lim, v_lim, out=vy)
+                    dt = 0.30 * dl / max(v_max, v_target, 1.0)
+                    vx[objet==1], vy[objet==1] = 0, 0
+                    vx[0, :], vy[0, :] = v_target, 0
+
+                    if it % 40 == 0:
+                        mag = _np.sqrt(vx**2 + vy**2).T
+                        disp = _cv2.merge([_np.clip((mag/v_target)*127, 0, 255).astype(_np.uint8)]*3)
+                        disp[mask > 0] = [40, 40, 40]
+                        _cv2.imshow(f"AeroSim v4.1 — {label}", disp)
+                        if cfg_sim["save_gif"]:
+                            gif_frames.append(_cv2.cvtColor(disp, _cv2.COLOR_BGR2RGB))
+                        if _cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+
+                if cfg_sim["save_gif"] and gif_frames:
+                    import imageio as _imageio, os as _os2
+                    _rep = _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "Reports")
+                    _os2.makedirs(_rep, exist_ok=True)
+                    _imageio.mimsave(_os2.path.join(_rep, f"sim_{label}.gif"), gif_frames, fps=24)
+
+                _cv2.destroyAllWindows()
+                aerosim_status_var.set("Simulação concluída.")
+            except Exception as ex:
+                aerosim_status_var.set(f"Erro: {ex}")
+                import traceback; traceback.print_exc()
+
+        threading.Thread(target=_run_sim, daemon=True).start()
+
+    _btn(s_aerosim_act, "  🌀  EXECUTAR AEROSIM  ", _launch_aerosim,
+         bg="#d29922", fg=BG).pack(fill="x", pady=6, padx=4)
+
+    # ════════════════════════════════════════════════════════════
+    # ABA 5 — VISUALIZADOR DE GEOMETRIAS (geo_visualizer)
+    # ════════════════════════════════════════════════════════════
+    tab5 = tk.Frame(nb, bg=BG)
+    nb.add(tab5, text="  🔷 GEO VIZ  ")
+
+    inner5 = tk.Frame(tab5, bg=BG, padx=14)
+    inner5.pack(fill="both", expand=True, pady=6)
+
+    s_geo_viz_info = _section(inner5, "VISUALIZADOR DE GEOMETRIAS — White §8.1")
+    tk.Label(s_geo_viz_info,
+             text="  Visualiza e compara perfis aerodinâmicos e silhuetas de asa.\n"
+                  "  Exibe: seção transversal, espessura, curvatura, vista pseudo-3D\n"
+                  "  e tabela de métricas geométricas (t/c, camber, área, raio BA).\n"
+                  "  Suporta até 3 perfis simultâneos. Exporta PNG.",
+             bg=PANEL, fg=MUTED, font=("Courier", 9), justify="left").pack(anchor="w", pady=4)
+
+    s_geo_viz_pre = _section(inner5, "PRÉ-SELEÇÃO (usa parâmetros da aba ✈ VOO)")
+    tk.Label(s_geo_viz_pre,
+             text="  O visualizador abre com os perfis, corda, envergadura\n"
+                  "  e tipo de asa já selecionados na aba principal.",
+             bg=PANEL, fg=MUTED, font=("Courier", 8), justify="left").pack(anchor="w", pady=2)
+
+    geo_viz_custom_path_var = tk.StringVar(value="")
+    geo_viz_custom_name_var = tk.StringVar(value="")
+
+    s_geo_viz_custom = _section(inner5, "PERFIL CUSTOMIZADO (.DAT / .STL) — opcional")
+    tk.Label(s_geo_viz_custom,
+             text="  Carrega um perfil externo e o injeta no visualizador.\n"
+                  "  Deixe em branco para usar apenas os perfis do database.",
+             bg=PANEL, fg=MUTED, font=("Courier", 8), justify="left").pack(anchor="w", pady=2)
+
+    cust_row = tk.Frame(s_geo_viz_custom, bg=PANEL); cust_row.pack(fill="x", pady=3)
+    tk.Label(cust_row, text="Arquivo (.DAT/.STL):", bg=PANEL, fg=MUTED,
+             font=("Courier", 8), width=22, anchor="w").pack(side="left")
+    tk.Entry(cust_row, textvariable=geo_viz_custom_path_var, bg="#21262d", fg=TEXT,
+             insertbackground=TEXT, relief="flat", font=("Courier", 8),
+             width=28).pack(side="left", padx=4)
+
+    def _browse_geo_custom():
+        from tkinter import filedialog
+        p = filedialog.askopenfilename(
+            title="Perfil customizado",
+            filetypes=[("Perfil aerodinâmico", "*.dat *.DAT *.stl *.STL *.txt")])
+        if p:
+            geo_viz_custom_path_var.set(p)
+            import os as _os
+            geo_viz_custom_name_var.set(_os.path.splitext(_os.path.basename(p))[0])
+
+    tk.Button(cust_row, text="ARQUIVO", command=_browse_geo_custom,
+              bg="#30363d", fg=TEXT, font=("Courier", 8, "bold"),
+              relief="flat", padx=6, cursor="hand2").pack(side="left")
+
+    name_row = tk.Frame(s_geo_viz_custom, bg=PANEL); name_row.pack(fill="x", pady=3)
+    tk.Label(name_row, text="Nome do perfil:", bg=PANEL, fg=MUTED,
+             font=("Courier", 8), width=22, anchor="w").pack(side="left")
+    tk.Entry(name_row, textvariable=geo_viz_custom_name_var, bg="#21262d", fg=TEXT,
+             insertbackground=TEXT, relief="flat", font=("Courier", 8),
+             width=28).pack(side="left", padx=4)
+
+    s_geo_viz_act = _section(inner5, "ABRIR VISUALIZADOR")
+
+    def _launch_geo_viz():
+        import os as _os
+        try:
+            from geo_visualizer import launch_geo_visualizer
+        except ImportError as e:
+            messagebox.showerror("Geo Visualizer", f"Não foi possível importar geo_visualizer:\n{e}")
+            return
+
+        sel_idx = lb_perfis_ref[0].curselection() if lb_perfis_ref[0] else ()
+        lista   = perfis_lista_ref[0]
+        perfis_pre = [lista[i] for i in sel_idx[:3]] if sel_idx and lista else []
+
+        parent_cfg = {
+            "perfis_sel": perfis_pre,
+            "c":          _safe(c_var, 0.6),
+            "b":          _safe(b_var, 3.0),
+            "asat_sel":   asat_var.get(),
+        }
+
+        custom_path = geo_viz_custom_path_var.get().strip()
+        custom_name = geo_viz_custom_name_var.get().strip() or "Custom"
+        if custom_path and _os.path.isfile(custom_path):
+            try:
+                from Dark_Wing import load_airfoil_robust
+                pts = load_airfoil_robust(custom_path)
+                parent_cfg["airfoil_pts"]  = pts
+                parent_cfg["airfoil_name"] = custom_name
+            except Exception as ex:
+                messagebox.showwarning("Geo Visualizer",
+                                       f"Não foi possível carregar o perfil customizado:\n{ex}\n"
+                                       "O visualizador abrirá sem ele.")
+
+        try:
+            launch_geo_visualizer(parent_cfg=parent_cfg)
+        except Exception as ex:
+            messagebox.showerror("Geo Visualizer", f"Erro ao abrir visualizador:\n{ex}")
+
+    _btn(s_geo_viz_act, "  🔷  ABRIR VISUALIZADOR DE GEOMETRIAS  ", _launch_geo_viz,
+         bg="#2ca02c", fg=BG).pack(fill="x", pady=6, padx=4)
+
+    tk.Label(s_geo_viz_act,
+             text="  Abre em janela separada (não bloqueia a GUI principal).\n"
+                  "  Atalhos: Enter / F5 para atualizar gráficos.",
+             bg=PANEL, fg=MUTED, font=("Courier", 8), justify="left").pack(anchor="w", pady=2)
+
+    # ════════════════════════════════════════════════════════════
     # CALLBACK DE RELOAD — chamado pelo DatabaseWatcher
     # ════════════════════════════════════════════════════════════
     def _on_database_changed(mtime):

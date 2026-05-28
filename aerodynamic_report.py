@@ -20,13 +20,16 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURAÇÃO: diretório de saída (mesmo local do código)
+# CONFIGURAÇÃO: pasta Reports (auto-criada se ausente ou deletada)
 # ═══════════════════════════════════════════════════════════════════════════════
-OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+_BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(_BASE_DIR, "Reports")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def _save_path(filename):
-    """Retorna caminho completo no diretório do script."""
+    """Retorna caminho completo na pasta Reports, criando-a se necessário."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     return os.path.join(OUTPUT_DIR, filename)
 
 

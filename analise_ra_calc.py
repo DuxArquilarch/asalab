@@ -2,6 +2,8 @@
 # Dark Wing Project — MÓDULO: CÁLCULOS GEOMÉTRICOS / RA             #
 # ================================================================= #
 
+import re
+
 import numpy as np
 
 # ----------------------------------------------------------------- #
@@ -54,13 +56,38 @@ def gerar_coord_naca(nome):
 
     # --- Airfoil Geometry Extraction Logic ---
     nome_upper = nome.upper()
-    digits = "".join(filter(str.isdigit, nome_upper))
+    naca_match = re.search(r"NACA\s*([0-9]{2}-[0-9]{3}|[0-9]{4,5})", nome_upper)
+    if naca_match:
+        digits = "".join(filter(str.isdigit, naca_match.group(1)))
+    else:
+        digits = "".join(filter(str.isdigit, nome_upper))
     
-    if "NACA" in nome_upper and len(digits) >= 4:
-        # Standard NACA 4-Digit Parser
-        m = int(digits[0]) / 100.0
-        p = int(digits[1]) / 10.0 if int(digits[1]) > 0 else 0.5
-        t = int(digits[2:4]) / 100.0
+    if ("63-215" in nome_upper or "63215" in digits or
+            "65-210" in nome_upper or "65210" in digits):
+        # Simple visual approximation for NACA 6-series profiles.
+        m, p = 0.020, 0.40
+        t = int(digits[-2:]) / 100.0 if len(digits) >= 2 else 0.15
+    elif "NACA" in nome_upper and len(digits) == 5:
+        # NACA 5-digit parser. For 230xx use the standard 230 mean line.
+        t = int(digits[-2:]) / 100.0
+        if digits.startswith("230"):
+            r, k1 = 0.2025, 15.957
+            yc = np.where(
+                x < r,
+                k1 / 6.0 * (x**3 - 3 * r * x**2 + r**2 * (3 - r) * x),
+                k1 * r**3 / 6.0 * (1 - x),
+            )
+            yt = thickness(t)
+            return x, yc + yt, yc - yt
+        m = int(digits[0]) * 1.5 / 100.0
+        p = int(digits[1:3]) / 200.0 if int(digits[1:3]) > 0 else 0.3
+    elif "NACA" in nome_upper and len(digits) >= 4:
+        # Standard NACA 4-digit parser. Use the last 4 digits so labels with
+        # extra numeric suffixes do not corrupt thickness.
+        d4 = digits[-4:]
+        m = int(d4[0]) / 100.0
+        p = int(d4[1]) / 10.0 if int(d4[1]) > 0 else 0.5
+        t = int(d4[2:4]) / 100.0
     elif "SELIG" in nome_upper or "S1223" in nome_upper:
         # Parameters closely matching the ultra-high camber Selig 1223
         m, p, t = 0.081, 0.35, 0.121
